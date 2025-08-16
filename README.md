@@ -96,3 +96,6 @@ This project is in active development and welcomes contributions of all kinds. W
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
 
+## 📄 License
+
+This project is distributed under the MIT License.
