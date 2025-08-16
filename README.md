@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/inznin/final-project/cde83efb27c5555721e72f69f6e16affc4a4aec3/assets/bot-cover.png.jpg" alt="Task Manager Bot Cover" width="400"/>
 </p>
 
-<h1 align="center">Task Management Telegram Bot</h1>
+<h1 align="center">Task Management Bot for group projects</h1>
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python Version"></a>

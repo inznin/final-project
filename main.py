@@ -2,14 +2,16 @@ import json
 import logging
 import os
 import re
+import asyncio
 from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, List, Optional, Callable
 
+import aiofiles
 import dateparser
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler,
+    Application, CommandHandler, ContextTypes, CallbackQueryHandler,
     MessageHandler, filters, BaseHandler
 )
 
@@ -28,54 +30,72 @@ ROLES_FILE = "roles.json"
 class DataManager:
     """A class to manage reading, writing, and handling data in JSON files."""
 
-    # ..:: Loads data files upon initialization. ::..
+    # ..:: Initializes data structures. Data is loaded asynchronously later. ::..
     def __init__(self, tasks_file: str, roles_file: str):
         self.tasks_file = tasks_file
         self.roles_file = roles_file
-        self.tasks: List[Dict[str, Any]] = self._load_json(self.tasks_file, default_factory=list)
-        self.user_roles: Dict[str, str] = self._load_json(self.roles_file, default_factory=dict)
+        self.tasks: List[Dict[str, Any]] = []
+        self.user_roles: Dict[str, str] = {}
+        self._is_dirty = False # Flag to track if data has changed and needs saving.
+
+    # ..:: Asynchronously loads all data from files at startup. ::..
+    async def load_data(self):
+        """Loads data from JSON files asynchronously at startup."""
+        self.tasks = await self._load_json(self.tasks_file, default_factory=list)
+        self.user_roles = await self._load_json(self.roles_file, default_factory=dict)
+        logger.info("Data loaded successfully.")
 
     # ..:: Safely loads a JSON file, returning a default value (e.g., empty list/dict) on error. ::..
-    def _load_json(self, file_path: str, default_factory: Callable) -> Any:
+    async def _load_json(self, file_path: str, default_factory: Callable) -> Any:
         if os.path.exists(file_path):
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except json.JSONDecodeError:
-                logger.error(f"Error reading {file_path}. File is empty or malformed.")
+                async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                    content = await f.read()
+                    if content:
+                        return json.loads(content)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error(f"Error reading {file_path}: {e}. Using default.")
         return default_factory()
 
     # ..:: Saves data to a JSON file with readable UTF-8 formatting. ::..
-    def _save_json(self, data: Any, file_path: str):
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    async def _save_json(self, data: Any, file_path: str):
+        try:
+            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(data, ensure_ascii=False, indent=2))
+        except IOError as e:
+            logger.error(f"Error writing to {file_path}: {e}")
 
-    # ..:: Helper method to save the current list of tasks. ::..
-    def save_tasks(self):
-        self._save_json(self.tasks, self.tasks_file)
+    # ..:: Saves data to disk only if there are pending changes. ::..
+    async def save_data_if_needed(self, force: bool = False):
+        if self._is_dirty or force:
+            await self._save_json(self.tasks, self.tasks_file)
+            await self._save_json(self.user_roles, self.roles_file)
+            self._is_dirty = False
+            logger.info("Data saved to disk.")
 
-    # ..:: Helper method to save the current user roles. ::..
-    def save_roles(self):
-        self._save_json(self.user_roles, self.roles_file)
-
-    # ..:: Adds a new task to the list and saves it. ::..
+    # ..:: Sets a user's role in memory. ::..
+    def set_user_role(self, user_id: str, role: str):
+        self.user_roles[user_id] = role
+        self._is_dirty = True
+        
+    # ..:: Adds a new task to the list in memory. ::..
     def add_task(self, task: Dict[str, Any]):
         self.tasks.append(task)
-        self.save_tasks()
+        self._is_dirty = True
 
-    # ..:: Deletes a task by its index. ::..
+    # ..:: Deletes a task by its index from memory. ::..
     def delete_task(self, index: int) -> bool:
         if 0 <= index < len(self.tasks):
             del self.tasks[index]
-            self.save_tasks()
+            self._is_dirty = True
             return True
         return False
 
-    # ..:: Marks a task's status as 'done'. ::..
+    # ..:: Marks a task's status as 'done' in memory. ::..
     def complete_task(self, index: int) -> Optional[Dict[str, Any]]:
         if 0 <= index < len(self.tasks):
             self.tasks[index]["done"] = True
-            self.save_tasks()
+            self._is_dirty = True
             return self.tasks[index]
         return None
 
@@ -83,14 +103,14 @@ class DataManager:
 class TaskParser:
     """A class to parse raw user text and intelligently extract task details (user ID, text, deadline)."""
     
-    # ..:: Regex patterns are defined as class constants for clarity and maintainability. ::..
-    USER_ID_PATTERN = r"\b(\d{5,})\b"
-    DATE_PATTERNS = [
+    # ..:: Regex patterns are pre-compiled for performance. ::..
+    USER_ID_PATTERN = re.compile(r"\b(\d{5,})\b")
+    DATE_PATTERNS = [re.compile(p, re.IGNORECASE) for p in [
         r"by\s+(\d{1,2}[-/]\d{1,2}[-/]\d{4})",
         r"by\s+(\d{4}[-/]\d{1,2}[-/]\d{1,2})",
         r"by\s+(tomorrow|today|next week|next month|next year)",
         r"(\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})",
-    ]
+    ]]
     
     def __init__(self, text: str):
         self.original_text = text
@@ -98,10 +118,10 @@ class TaskParser:
 
     # ..:: Finds a number with at least 5 digits and interprets it as a user ID. ::..
     def _extract_user_id(self) -> Optional[int]:
-        match = re.search(self.USER_ID_PATTERN, self.processed_text)
+        match = self.USER_ID_PATTERN.search(self.processed_text)
         if match:
             user_id = int(match.group(1))
-            self.processed_text = self.processed_text.replace(match.group(0), "").strip()
+            self.processed_text = self.processed_text.replace(match.group(0), "", 1).strip()
             return user_id
         return None
 
@@ -109,10 +129,10 @@ class TaskParser:
     def _extract_deadline(self) -> Optional[str]:
         found_date_str = None
         for pattern in self.DATE_PATTERNS:
-            match = re.search(pattern, self.processed_text, re.IGNORECASE)
+            match = pattern.search(self.processed_text)
             if match:
                 found_date_str = match.group(1) if match.groups() else match.group(0)
-                self.processed_text = self.processed_text.replace(match.group(0), "").strip()
+                self.processed_text = self.processed_text.replace(match.group(0), "", 1).strip()
                 break
 
         if found_date_str:
@@ -126,11 +146,8 @@ class TaskParser:
 
     # ..:: Removes extra keywords to isolate the core task description. ::..
     def _extract_task_text(self) -> str:
-        keywords_to_remove = ["for user", "task", "deadline", ":", "by", "project"]
-        temp_text = self.processed_text
-        for keyword in keywords_to_remove:
-            temp_text = temp_text.replace(keyword, "").strip()
-        
+        keywords_pattern = re.compile(r'\b(for user|task|deadline|:|by|project)\b', re.IGNORECASE)
+        temp_text = keywords_pattern.sub("", self.processed_text)
         return re.sub(r'\s+', ' ', temp_text).strip()
 
     # ..:: Main method to run all extraction steps and return a structured task dictionary or an error. ::..
@@ -155,21 +172,21 @@ class TaskParser:
 class SimpleAI:
     """A very simple class to answer common questions based on pattern matching."""
     def __init__(self):
-        # ..:: A dictionary of regex patterns and their corresponding responses. ::..
+        # ..:: A dictionary of pre-compiled regex patterns and their corresponding responses. ::..
         self.qa_patterns = {
-            r"(hello|hi)": "Hello there!",
-            r"(how are you|how's it going)": "I'm a bot, but I'm doing great! How about you?",
-            r"(what can you do|help|features)": "I can manage tasks, generate reports, and add users. Use the main menu to see the options.",
-            r"(what is your name)": "I am a Task Management Bot!",
-            r"(thank you|thanks)": "You're welcome! Happy to help.",
-            r"(bye|goodbye)": "Goodbye! Have a great day.",
+            re.compile(r"(hello|hi)"): "Hello there!",
+            re.compile(r"(how are you|how's it going)"): "I'm a bot, but I'm doing great! How about you?",
+            re.compile(r"(what can you do|help|features)"): "I can manage tasks, generate reports, and add users. Use the main menu to see the options.",
+            re.compile(r"(what is your name)"): "I am a Task Management Bot!",
+            re.compile(r"(thank you|thanks)"): "You're welcome! Happy to help.",
+            re.compile(r"(bye|goodbye)"): "Goodbye! Have a great day.",
         }
 
     # ..:: Compares user text against patterns and returns a response if a match is found. ::..
     def get_response(self, text: str) -> Optional[str]:
         text_lower = text.lower().strip()
         for pattern, response in self.qa_patterns.items():
-            if re.search(pattern, text_lower):
+            if pattern.search(text_lower):
                 return response
         return None
 
@@ -208,8 +225,31 @@ class TaskBot:
     def __init__(self, token: str):
         self.data_manager = DataManager(TASKS_FILE, ROLES_FILE)
         self.simple_ai = SimpleAI()
-        self.app = ApplicationBuilder().token(token).build()
+        
+        # CORRECTED SECTION: post_init and post_shutdown are added to the builder before building the app.
+        builder = Application.builder().token(token)
+        builder.post_init(self.post_init)
+        builder.post_shutdown(self.post_shutdown)
+        
+        self.app = builder.build()
+
         self._setup_handlers()
+
+    # ..:: Loads data at startup and starts the periodic save task. ::..
+    async def post_init(self, application: Application):
+        await self.data_manager.load_data()
+        application.create_task(self._periodic_save())
+
+    # ..:: Background task to periodically save data if it has changed. ::..
+    async def _periodic_save(self):
+        while True:
+            await asyncio.sleep(60)
+            await self.data_manager.save_data_if_needed()
+
+    # ..:: Ensures data is saved one last time before the bot stops. ::..
+    async def post_shutdown(self, application: Application):
+        logger.info("Bot is shutting down. Saving final data...")
+        await self.data_manager.save_data_if_needed(force=True)
 
     # ..:: Registers all handlers for commands, buttons, and messages. ::..
     def _setup_handlers(self):
@@ -236,11 +276,10 @@ class TaskBot:
         query = update.callback_query
         await query.answer()
         
-        role = query.data.replace(self.ROLE_PREFIX, "")
+        role = query.data.split('_', 1)[1]
         user_id = str(query.from_user.id)
         
-        self.data_manager.user_roles[user_id] = role
-        self.data_manager.save_roles()
+        self.data_manager.set_user_role(user_id, role)
 
         await query.edit_message_text(f"✅ Your role as **{role}** has been saved.")
         await self._send_main_menu(user_id, context)
@@ -395,8 +434,7 @@ class TaskBot:
             if new_user_id in self.data_manager.user_roles:
                 await update.message.reply_text("❌ This user has already been added.")
             else:
-                self.data_manager.user_roles[new_user_id] = "member"
-                self.data_manager.save_roles()
+                self.data_manager.set_user_role(new_user_id, "member")
                 await update.message.reply_text(f"✅ User **{new_user_id}** has been added as a member.")
         except ValueError:
             await update.message.reply_text("❌ The ID must be a numeric value.")
@@ -408,10 +446,10 @@ class TaskBot:
         
         data = query.data
         if data.startswith(self.DONE_PREFIX):
-            index = int(data.replace(self.DONE_PREFIX, ""))
+            index = int(data[len(self.DONE_PREFIX):])
             await self._handle_done_action(query, context, index)
         elif data.startswith(self.DELETE_PREFIX):
-            index = int(data.replace(self.DELETE_PREFIX, ""))
+            index = int(data[len(self.DELETE_PREFIX):])
             await self._handle_delete_action(query, index)
 
     # ..:: Logic for when a user marks a task as done. ::..
@@ -421,14 +459,16 @@ class TaskBot:
             await query.edit_message_text(f"✅ Task completed:\n{completed_task['text']}")
             # ..:: Notifies all admins that a task was completed. ::..
             admins = [uid for uid, role in self.data_manager.user_roles.items() if role == "admin"]
+            
+            notification_tasks = []
             for admin_id in admins:
-                try:
-                    await context.bot.send_message(
+                notification_tasks.append(
+                    context.bot.send_message(
                         chat_id=admin_id,
                         text=f"📬 User **{completed_task['user_id']}** completed a task:\n{completed_task['text']}"
                     )
-                except Exception as e:
-                    logger.error(f"Failed to notify admin {admin_id}: {e}")
+                )
+            await asyncio.gather(*notification_tasks, return_exceptions=True)
         else:
             await query.edit_message_text("❌ Could not find the task to mark as complete.")
 
@@ -489,6 +529,7 @@ def main():
 
     bot = TaskBot(token)
     bot.run()
+
 
 if __name__ == "__main__":
     main()
