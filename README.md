@@ -1,28 +1,28 @@
 <p align="center">
-  <img src="./assets/bot-cover.png" alt="Group Task Manager Bot Cover" width="400"/>
+  <img src="./assets/bot-cover.png" alt="Task Manager Bot Cover" width="400"/>
 </p>
 
-<h1 align="center">Advanced Task Management Telegram Bot</h1>
+<h1 align="center">Task Management Telegram Bot</h1>
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python Version"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Status-In%20Development-orange.svg" alt="Status"></a>
   <a href="#"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
 </p>
 
-A sophisticated, role-based Telegram bot for managing tasks within a team. It features an intelligent parser for natural language task creation and provides distinct interfaces for admins and members.
+This is a functional, role-based Telegram bot designed for task management. This project is currently in its foundational stage and serves as a solid starting point for a more comprehensive tool. It is open for contributions, improvements, and feature expansions.
 
 ---
 
-## ✨ Key Features
+## ✨ Current Features
 
 -   **✅ Role-Based Access Control**: Separate menus and permissions for **Admins** and **Members**.
 -   **🤖 Intelligent Task Parsing**: Automatically extracts user IDs and deadlines from natural language messages (e.g., "task for user `123456` by `tomorrow`").
 -   **📋 Interactive Menus**: User-friendly navigation with inline keyboard buttons.
--   **💾 Data Persistence**: All tasks and user roles are saved locally in JSON files (`tasks.json`, `roles.json`).
+-   **💾 Data Persistence**: All tasks and user roles are saved locally in JSON files.
 -   **🔔 Admin Notifications**: Admins are notified when a user marks a task as complete.
--   **💬 Simple AI Responder**: Provides answers to basic conversational queries like "hello" or "how are you?".
--   **🔒 Secure**: Ignores sensitive files like `token.txt` and databases via `.gitignore`.
+-   **💬 Simple AI Responder**: Provides answers to basic conversational queries.
 
 ## 🚀 Getting Started
 
@@ -31,7 +31,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 ### Prerequisites
 
 -   Python 3.9+
--   A Telegram Bot Token. You can get one from [@BotFather](https://t.me/BotFather) on Telegram.
+-   A Telegram Bot Token from [@BotFather](https://t.me/BotFather).
 
 ### Installation & Setup
 
@@ -60,52 +60,35 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 4.  **Configure your Bot Token:**
     -   Create a file named `token.txt` in the root directory.
-    -   Paste your Telegram Bot Token inside this file. The file should *only* contain the token string.
+    -   Paste your Telegram Bot Token inside this file.
 
 ### Running the Bot
 
-Execute the main script to start the bot:```sh
+Execute the main script to start the bot:
+```sh
 python main.py
 ```
-The bot is now running and will start listening for commands on Telegram.
 
 ## 🤖 How to Use
 
-### 1. First-Time Start
--   Open a chat with your bot on Telegram and send the `/start` command.
--   The bot will ask you to select your role: **Admin** or **Member**. This choice determines the menu you will see.
+-   **/start**: Initializes the bot and prompts for role selection (Admin/Member).
+-   **Admin Menu**: Admins can add new tasks, add new members, view a full task report, and delete tasks.
+-   **Member Menu**: Members can view their assigned tasks and mark them as complete.
 
-### 2. Admin Workflow
-As an admin, you have access to the following commands via the main menu:
--   **➕ Add Task**: Prompts you to send a message containing the task details. The bot will parse the user's numeric ID, the deadline, and the task description.
-    -   *Example*: `Assign project alpha to user 123456789 by next Friday`
--   **👥 Add Member**: Prompts you to enter the numeric Telegram ID of a new user to grant them "Member" access.
--   **📊 Task Report**: Displays a formatted list of all tasks, including their status, assigned user, and deadline information.
--   **🗑️ Delete Task**: Shows a list of all tasks with buttons to delete them individually.
+## 🛣️ Roadmap & Future Ideas
 
-### 3. Member Workflow
-As a member, you have a simplified interface:
--   **📌 My Tasks**: Displays a list of all tasks assigned to you.
--   **✅ Mark as Done**: Each task notification you receive includes a "Mark as Done" button. Clicking it updates the task status and notifies all admins.
+This project has plenty of room for growth. Contributions are highly encouraged! Some ideas for future development include:
 
-## 📁 Project Structure
-
-```
-.
-├── assets/
-│   └── bot-cover.png   # The cover image for README
-├── main.py             # The main application script to run the bot.
-├── tasks.json          # Database for tasks (auto-generated, ignored by Git).
-├── roles.json          # Database for user roles (auto-generated, ignored by Git).
-├── requirements.txt    # A list of Python packages required for the project.
-├── token.txt           # File for your private Telegram Bot token (create manually).
-├── .gitignore          # Specifies files and folders to be ignored by Git.
-└── README.md           # This file.
-```
+-   [ ] **Database Integration**: Migrating from JSON files to a more robust database like SQLite or PostgreSQL.
+-   [ ] **Task Editing**: Allowing admins to edit existing tasks.
+-   [ ] **Deadline Reminders**: Automatically sending reminders to users before a task deadline.
+-   [ ] **Recurring Tasks**: Adding support for daily, weekly, or monthly tasks.
+-   [ ] **Improved Analytics**: A dashboard or report for tracking user productivity.
+-   [ ] **Localization**: Adding support for multiple languages.
 
 ## 🤝 Contributing
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+This project is in active development and welcomes contributions of all kinds. Whether it's a new feature, a bug fix, or documentation improvement, your help is welcome. Please feel free to fork the repository and submit a pull request.
 
 1.  Fork the Project
 2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
