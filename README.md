@@ -1,19 +1,16 @@
-# Advanced Task Management Telegram Bot
+<p align="center">
+  <img src="./assets/bot-cover.png" alt="Group Task Manager Bot Cover" width="400"/>
+</p>
 
-[![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+<h1 align="center">Advanced Task Management Telegram Bot</h1>
+
+<p align="center">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python Version"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="#"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+</p>
 
 A sophisticated, role-based Telegram bot for managing tasks within a team. It features an intelligent parser for natural language task creation and provides distinct interfaces for admins and members.
-
----
-
-<details>
-<summary>🇮🇷 **توضیحات به زبان فارسی (Farsi Description)**</summary>
-
-این پروژه یک ربات تلگرام پیشرفته برای مدیریت وظایف است که بر اساس نقش کاربران (مدیر و عضو) عمل می‌کند. مدیران می‌توانند برای اعضا وظیفه تعریف کنند، اعضای جدید اضافه کنند و گزارش عملکرد بگیرند. ربات به صورت هوشمند متن پیام را برای استخراج آیدی کاربر و مهلت انجام وظیفه تحلیل می‌کند. اعضا نیز می‌توانند لیست وظایف خود را مشاهده و آن‌ها را به‌عنوان "انجام شده" علامت‌گذاری کنند.
-
-</details>
 
 ---
 
@@ -43,6 +40,7 @@ Follow these instructions to get a copy of the project up and running on your lo
     git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY_NAME.git
     cd YOUR_REPOSITORY_NAME
     ```
+    *Remember to replace `YOUR_USERNAME/YOUR_REPOSITORY_NAME` with your actual GitHub details.*
 
 2.  **Create and activate a virtual environment:**
     ```sh
@@ -66,8 +64,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 ### Running the Bot
 
-Execute the main script to start the bot:
-```sh
+Execute the main script to start the bot:```sh
 python main.py
 ```
 The bot is now running and will start listening for commands on Telegram.
@@ -95,6 +92,8 @@ As a member, you have a simplified interface:
 
 ```
 .
+├── assets/
+│   └── bot-cover.png   # The cover image for README
 ├── main.py             # The main application script to run the bot.
 ├── tasks.json          # Database for tasks (auto-generated, ignored by Git).
 ├── roles.json          # Database for user roles (auto-generated, ignored by Git).
@@ -114,7 +113,3 @@ Contributions are what make the open-source community such an amazing place to l
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
 
-## 📄 License
-
-This project is distributed under the MIT License.# final project
-manager telegram bot
